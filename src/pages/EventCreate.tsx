@@ -296,6 +296,7 @@ export default function EventCreate() {
       try {
         const data = await listUsers();
         setUsers(data || []);
+        // default: include self if available
         if (user?.id) {
           setSelectedUserIds((prev) =>
             prev.includes(user.id) ? prev : [user.id, ...prev],
@@ -311,9 +312,7 @@ export default function EventCreate() {
     fetchUsers();
   }, [user?.id]);
 
-  const toggleOtherUser = (userId: number) => {
-    // never remove self
-    if (user?.id === userId) return;
+  const toggleUser = (userId: number) => {
     setSelectedUserIds((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
     );
@@ -366,7 +365,7 @@ export default function EventCreate() {
     }
   };
 
-  // users shown in dropdown: not self, not already selected
+  // users shown in dropdown: not already selected, match search, and (optionally) not self
   const filteredUsers = users.filter((u) => {
     const q = searchTerm.toLowerCase().trim();
     if (!q) return false;
@@ -442,25 +441,40 @@ export default function EventCreate() {
                 <Label className="text-foreground">Participants</Label>
               </div>
 
-              {/* Self (always included) */}
+              {/* Self (toggle include/exclude) */}
               {user && (
-                <div className="flex items-center justify-between rounded-lg border border-border/50 bg-secondary/30 p-3">
+                <button
+                  type="button"
+                  onClick={() => toggleUser(user.id)}
+                  className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
+                    selectedUserIds.includes(user.id)
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border/50 bg-secondary/30 hover:bg-secondary/50'
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-4 w-4 items-center justify-center rounded-sm border border-primary bg-primary text-primary-foreground">
-                      <Check className="h-3 w-3" />
+                    <div
+                      className={`flex h-4 w-4 items-center justify-center rounded-sm border ${
+                        selectedUserIds.includes(user.id)
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border/50 bg-transparent'
+                      }`}
+                    >
+                      {selectedUserIds.includes(user.id) && <Check className="h-3 w-3" />}
                     </div>
-                    <div className="overflow-hidden">
-                      <p className="truncate font-medium text-foreground">
-                        {user.username || user.email}
-                        <span className="ml-1 text-xs text-primary">(You)</span>
-                      </p>
-                    </div>
+                    <p className="font-medium text-foreground">
+                      {user.username || user.email}
+                      <span className="ml-1 text-xs text-primary">(You)</span>
+                    </p>
                   </div>
-                  <span className="text-xs text-muted-foreground">Always included</span>
-                </div>
+
+                  <span className="text-xs text-muted-foreground">
+                    {selectedUserIds.includes(user.id) ? 'Included' : 'Not included'}
+                  </span>
+                </button>
               )}
 
-              {/* Search box to add other debtors */}
+              {/* Search box to add other participants */}
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">
                   Add other participants by searching their name
@@ -488,7 +502,7 @@ export default function EventCreate() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  toggleOtherUser(u.id);
+                                  toggleUser(u.id);
                                   setSearchTerm('');
                                 }}
                                 className="flex w-full items-center justify-between px-3 py-2 text-left text-foreground hover:bg-secondary/60"
@@ -506,7 +520,7 @@ export default function EventCreate() {
                 </div>
               </div>
 
-              {/* Selected others */}
+              {/* Selected other participants */}
               {isLoadingUsers ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -526,7 +540,7 @@ export default function EventCreate() {
                         <button
                           type="button"
                           key={u.id}
-                          onClick={() => toggleOtherUser(u.id)}
+                          onClick={() => toggleUser(u.id)}
                           className="flex items-center gap-1 rounded-full border border-border/60 bg-secondary/40 px-3 py-1 text-xs text-foreground hover:bg-secondary/70"
                         >
                           <span className="truncate max-w-[120px]">
