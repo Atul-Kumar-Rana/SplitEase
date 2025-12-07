@@ -58,21 +58,31 @@ export default function Login() {
       login(token, user);
       toast.success('Welcome back!');
       navigate('/dashboard');
-    } catch (err: any) {
+    }     } catch (err: any) {
       const apiError = err?.response?.data?.error;
 
       if (apiError === 'email_not_verified') {
-        toast.error('Email not verified. Please check your inbox 📩');
-      } else if (apiError === 'invalid_credentials') {
-        toast.error('Invalid email or password.');
-      } else {
-        toast.error(
-          err instanceof Error
-            ? err.message
-            : 'Login failed. Please check your credentials.'
+        toast.info(
+          'Verify your email to continue. A verification link has been sent to your inbox 📩',
+          {
+            duration: 6000,
+          }
         );
+        return;
       }
-    } finally {
+
+      if (apiError === 'invalid_credentials') {
+        toast.error('Invalid email or password.');
+        return;
+      }
+
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : 'Login failed. Please check your credentials.'
+      );
+    }
+ finally {
       setIsLoading(false);
     }
   };
