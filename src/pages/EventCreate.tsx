@@ -259,7 +259,6 @@
 //     </div>
 //   );
 // }
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -269,7 +268,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Loader2, Receipt, Users, Search, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Receipt, Users, Search, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
@@ -298,7 +297,9 @@ export default function EventCreate() {
         const data = await listUsers();
         setUsers(data || []);
         if (user?.id) {
-          setSelectedUserIds([user.id]); // current user pre-selected
+          setSelectedUserIds((prev) =>
+            prev.includes(user.id) ? prev : [user.id, ...prev],
+          );
         }
       } catch (error) {
         console.error(error);
@@ -310,7 +311,9 @@ export default function EventCreate() {
     fetchUsers();
   }, [user?.id]);
 
-  const toggleUser = (userId: number) => {
+  const toggleOtherUser = (userId: number) => {
+    // never remove self
+    if (user?.id === userId) return;
     setSelectedUserIds((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
     );
@@ -363,16 +366,19 @@ export default function EventCreate() {
     }
   };
 
-  // Users matching search (only for dropdown)
+  // users shown in dropdown: not self, not already selected
   const filteredUsers = users.filter((u) => {
     const q = searchTerm.toLowerCase().trim();
-    if (!q) return false; // Only show list when searching
+    if (!q) return false;
+    if (u.id === user?.id) return false;
+    if (selectedUserIds.includes(u.id)) return false;
     const name = (u.username || '').toLowerCase();
     return name.includes(q);
   });
 
-  // For showing selected participants as pills
-  const selectedUsers = users.filter((u) => selectedUserIds.includes(u.id));
+  const selectedOthers = users.filter(
+    (u) => u.id !== user?.id && selectedUserIds.includes(u.id),
+  );
 
   return (
     <div className="mx-auto max-w-2xl animate-fade-in">
@@ -430,13 +436,36 @@ export default function EventCreate() {
               />
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <Label className="text-foreground">Participants</Label>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-foreground">Participants</Label>
+              </div>
+
+              {/* Self (always included) */}
+              {user && (
+                <div className="flex items-center justify-between rounded-lg border border-border/50 bg-secondary/30 p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-4 w-4 items-center justify-center rounded-sm border border-primary bg-primary text-primary-foreground">
+                      <Check className="h-3 w-3" />
+                    </div>
+                    <div className="overflow-hidden">
+                      <p className="truncate font-medium text-foreground">
+                        {user.username || user.email}
+                        <span className="ml-1 text-xs text-primary">(You)</span>
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Always included</span>
                 </div>
-                <div className="relative w-48">
+              )}
+
+              {/* Search box to add other debtors */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Add other participants by searching their name
+                </Label>
+                <div className="relative">
                   <Input
                     type="text"
                     placeholder="Search user..."
@@ -444,11 +473,14 @@ export default function EventCreate() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="border-border/50 bg-input pr-8 text-foreground placeholder:text-muted-foreground"
                   />
-                  <Search className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
                   {!isLoadingUsers && searchTerm && (
                     <div className="absolute z-10 mt-1 w-full rounded-md border border-border/50 bg-popover text-sm shadow-lg">
                       {filteredUsers.length === 0 ? (
-                        <p className="px-3 py-2 text-xs text-muted-foreground">No users found.</p>
+                        <p className="px-3 py-2 text-xs text-muted-foreground">
+                          No users found.
+                        </p>
                       ) : (
                         <ul className="max-h-48 overflow-y-auto py-1">
                           {filteredUsers.map((u) => (
@@ -456,16 +488,13 @@ export default function EventCreate() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  toggleUser(u.id);
+                                  toggleOtherUser(u.id);
                                   setSearchTerm('');
                                 }}
                                 className="flex w-full items-center justify-between px-3 py-2 text-left text-foreground hover:bg-secondary/60"
                               >
                                 <span className="truncate">
                                   {u.username}
-                                  {u.id === user?.id && (
-                                    <span className="ml-1 text-xs text-primary">(You)</span>
-                                  )}
                                 </span>
                               </button>
                             </li>
@@ -477,33 +506,31 @@ export default function EventCreate() {
                 </div>
               </div>
 
+              {/* Selected others */}
               {isLoadingUsers ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">
-                    Selected participants ({selectedUserIds.length})
+                    Other participants ({selectedOthers.length})
                   </p>
-                  {selectedUsers.length === 0 ? (
+                  {selectedOthers.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
-                      Use the search above to add participants.
+                      Use the search above to add more people.
                     </p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      {selectedUsers.map((u) => (
+                      {selectedOthers.map((u) => (
                         <button
                           type="button"
                           key={u.id}
-                          onClick={() => toggleUser(u.id)}
+                          onClick={() => toggleOtherUser(u.id)}
                           className="flex items-center gap-1 rounded-full border border-border/60 bg-secondary/40 px-3 py-1 text-xs text-foreground hover:bg-secondary/70"
                         >
                           <span className="truncate max-w-[120px]">
                             {u.username}
-                            {u.id === user?.id && (
-                              <span className="ml-1 text-[10px] text-primary">(You)</span>
-                            )}
                           </span>
                           <X className="h-3 w-3" />
                         </button>
