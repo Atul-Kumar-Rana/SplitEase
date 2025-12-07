@@ -58,7 +58,7 @@ export default function Login() {
       login(token, user);
       toast.success('Welcome back!');
       navigate('/dashboard');
-    }     } catch (err: any) {
+    }      catch (err: any) {
       const apiError = err?.response?.data?.error;
 
       if (apiError === 'email_not_verified') {
@@ -298,7 +298,7 @@ export default function Login() {
       </div>
     </div>
   );
-
+}
 
 // import { useState } from 'react';
 // import { Link, useNavigate } from 'react-router-dom';
