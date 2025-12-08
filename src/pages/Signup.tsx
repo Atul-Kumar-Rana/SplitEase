@@ -45,7 +45,7 @@ export default function Signup() {
     try {
       const response = await signupApi({ name, email, password });
       login(response.token, response.user);
-      toast.success('Account created successfully!');
+      toast.success('Account created successfully!, Please Verify the Link Send on your Email');
       navigate('/dashboard');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Signup failed. Please try again.');
